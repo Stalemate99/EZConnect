@@ -1,4 +1,3 @@
-
 const { ipcRenderer, contextBridge } = require('electron');
 
 window.ipcRenderer = ipcRenderer;
