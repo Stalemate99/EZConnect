@@ -1,9 +1,10 @@
 const { BrowserWindow, app, ipcMain } = require("electron");
 const path = require("path");
-var child = require("child_process").exec;
-var bluetooth = path.join(__dirname, "asset", "macos", "blueutil");
 
-console.log(bluetooth);
+const Bluetooth = require("./bluetooth");
+
+var Blu;
+
 
 // const isDev = !app.isPackaged;
 
@@ -29,98 +30,18 @@ function createWindow() {
 
   win.once("ready-to-show", () => {
     win.show();
-    chmod(console.log);
   });
+  Blu = new Bluetooth("MACOS"); // pass "LINUX" fro ubuntu
 }
 
 app.whenReady().then(createWindow);
 
-// Utilities
-
-const chmod = (cb) => {
-  child(`chmod +x ` + bluetooth, (error, stdout, stderr) => {
-    if (error) {
-      cb("error", error);
-      throw error;
-    } else {
-      cb("success", stdout);
-    }
-  });
-};
-
-const bleOn = (cb) => {
-  child(bluetooth + " -p 1", (error, stdout, stderr) => {
-    if (error) {
-      cb("error", error);
-      throw error;
-    } else {
-      cb("success", stdout);
-    }
-  });
-};
-
-const bleOff = (cb) => {
-  child(bluetooth + " -p 0", (error, stdout, stderr) => {
-    if (error) {
-      cb("error", stderr);
-      throw error;
-    } else {
-      cb("success", stdout);
-    }
-  });
-};
-
-const blePaired = (cb) => {
-  child(bluetooth + " --paired", (error, stdout, stderr) => {
-    if (error) {
-      cb("error", stderr);
-      throw error;
-    } else {
-      cb("success", stdout.toString().split("\n"));
-    }
-  });
-};
-
-const bleCon = (address, cb) => {
-  child(bluetooth + ` --connect ${address}`, (error, stdout, stderr) => {
-    if (error) {
-      cb("error", stderr);
-      throw error;
-    } else {
-      cb("success", stdout.toString());
-    }
-  });
-};
-
-// ------------------------------------------------------------------------------------------
-
-const bleDis = (address, cb) => {
-  child(bluetooth + ` --disconnect ${address}`, (error, stdout, stderr) => {
-    if (error) {
-      cb("error", stderr);
-      throw error;
-    } else {
-      cb("success", stdout.toString());
-    }
-  });
-};
-
-const bleGetConnected = (cb) => {
-  child(bluetooth + " --connected", (error, stdout, stderr) => {
-    if (error) {
-      cb("error", stderr);
-      throw error;
-    } else {
-      cb("success", stdout.toString().split("\n"));
-    }
-  });
-};
 
 // Defining functions for IPC
 
 ipcMain.on("connect", (event) => {
   console.log("Connecting...");
-  bleOn((result) => {
+  Blu.bleOn((result) => {
     if (result === "success") {
       console.log("Connected!");
     } else {
@@ -131,7 +52,7 @@ ipcMain.on("connect", (event) => {
 
 ipcMain.on("disconnect", (event) => {
   console.log("Disconnecting...");
-  bleOff((result) => {
+  Blu.bleOff((result) => {
     if (result === "success") {
       console.log("Disconnected!");
     } else {
@@ -142,7 +63,7 @@ ipcMain.on("disconnect", (event) => {
 
 ipcMain.on("search", (event) => {
   console.log("Searching...");
-  blePaired((result, devices) => {
+  Blu.getPaired((result, devices) => {
     if (result === "success") {
       console.log("Devices found: \n", devices);
       event.sender.webContents.send("paired-devices", devices);
@@ -154,7 +75,17 @@ ipcMain.on("search", (event) => {
 
 ipcMain.on("find", (event, address) => {
   console.log("Finding MAC address...");
-  bleCon(address, (result) => {
+  Blu.connect(address, (result) => {
+    if (result === "success") {
+      console.log("Device Connected!");
+    } else {
+      console.log("Invalid device address!");
+    }
+  });
+});
+
+ipcMain.on("remove", (event, address) => {
+  Blu.disconnect(address, (result) => {
     if (result === "success") {
       console.log("Device Connected!");
     } else {
